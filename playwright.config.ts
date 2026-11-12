@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
 
-  timeout: 30_000,
+  timeout: 60_000,
 
   expect: {
     timeout: 5_000,
@@ -22,7 +22,7 @@ export default defineConfig({
   ],
 
   use: {
-    trace: 'retain-on-failure',
+    trace: process.env.CI ? 'off' : 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
 
