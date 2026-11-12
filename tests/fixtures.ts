@@ -5,6 +5,7 @@ import {
 } from '@playwright/test';
 
 import { BookingsApi } from '../src/bookings.api';
+import { BookingPage } from '../src/booking.page';
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -19,6 +20,7 @@ function requiredEnv(name: string): string {
 type Fixtures = {
   authenticatedApi: APIRequestContext;
   bookings: BookingsApi;
+  bookingPage: BookingPage;
 };
 
 export const test = base.extend<Fixtures>({
@@ -82,6 +84,32 @@ export const test = base.extend<Fixtures>({
       await bookings.cleanup();
     }
   },
+  bookingPage: async ({ page }, use) => {
+  await page.goto('/login');
+
+  await page
+    .getByRole('textbox', { name: 'Email', exact: true })
+    .fill(requiredEnv('TEST_USER_EMAIL'));
+
+  await page
+    .getByRole('textbox', { name: 'Password', exact: true })
+    .fill(requiredEnv('TEST_USER_PASSWORD'));
+
+  await page
+    .getByRole('button', { name: 'Sign In', exact: true })
+    .click();
+
+await expect(page).not.toHaveURL(/\/login\/?$/, {
+  timeout: 20_000,
+});
+  const bookingPage = new BookingPage(page);
+
+try {
+  await use(bookingPage);
+} finally {
+  await bookingPage.cleanup();
+}
+},
 });
 
 export { expect };
