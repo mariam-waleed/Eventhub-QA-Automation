@@ -147,3 +147,10 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+# Playwright reports and test artifacts
+playwright-report/
+test-results/
+blob-report/
+
+# Saved authentication state
+playwright/.auth/
