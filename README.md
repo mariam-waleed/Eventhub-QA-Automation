@@ -128,10 +128,10 @@ US-114 defines the main journey but leaves several business rules unclear.
 
 | Area | Question for the Product Owner |
 | --- | --- |
-| User identity | Does “visitor” include guests, or must users sign in before booking? |
+| User identity | The application requires authentication to access events. Should US-114 identify the actor as a registered, signed-in user and explicitly state authentication as a prerequisite? |
 | Ownership | Should users be able to retrieve and cancel only their own bookings? |
 | Contact validation | What formats and length limits apply? Can attendee details differ from account details? |
-| Event eligibility | Can past or started events be booked? Are featured practice events exempt? |
+| Event eligibility | Should booking be blocked once an event has ended? Is the “always available for practice” behaviour an intentional exception limited to featured events? What is the booking cutoff for events still in progress? |
 | Availability | Do featured practice events follow the same capacity restrictions as other events? |
 | Cancellation | Is there a cancellation deadline? |
 | Duplicate submission | Should repeated confirmation or request retries create separate bookings? |
@@ -160,13 +160,13 @@ The disappearance of a cancelled booking from My Bookings therefore agrees with 
 | Cancellation documentation is ambiguous | Listing supports status=cancelled, while cancellation is described as permanent deletion. Clarification is needed on when cancelled records can exist. |
 | Authentication declaration is incomplete | Login instructs Bearer authentication, but booking operations do not clearly declare endpoint-specific security and authentication error responses. Authenticated requests work; unauthenticated and cross-account behaviour remain unverified. |
 | Response example has inconsistent IDs | An example booking contains eventId=3 while its nested event has id=1. This is a documentation example inconsistency. |
-| Past event was bookable | The manual walkthrough booked an event dated 20 October 2026 on 12 November 2026. It was labelled always available for practice, so this is a clarification rather than a confirmed defect. |
+| Past featured event was bookable | The manual walkthrough booked a featured event dated 20 October 2026 on 12 November 2026. Booking an ended event would normally be unexpected, but the UI explicitly labels this event as always available for practice. Clarify whether this is an intentional featured-event exception. Ordinary-event behaviour remains unverified. |
 
 Observed behaviour is not automatically treated as the intended requirement. Findings distinguish documentation differences from confirmed application failures.
 
 ### Assumptions
 
-- The assessed journey uses a dedicated registered account.
+- Booking requires a registered, authenticated user, consistent with observed UI behaviour. The suite uses a dedicated test account.
 - Quantity follows the documented 1–10 integer range.
 - Total follows AC2: unit price multiplied by quantity.
 - Cancellation follows the documented deletion contract.
@@ -206,7 +206,8 @@ The application is a shared external environment, so availability and network co
 
 ## With more time
 
-- Add guest, unauthenticated, and cross-account access tests after clarifying the contract.
+- Add explicit unauthenticated UI/API and cross-account access tests, including verification that signed-out users cannot access events.
+- Verify booking cutoffs for ordinary events separately from featured practice events.
 - Use isolated test-created events for deterministic capacity and seat-restoration checks.
 - Verify concurrent booking requests cannot oversell a limited-capacity event.
 - Expand contact validation and decimal-price cases.
