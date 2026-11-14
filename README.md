@@ -1,27 +1,28 @@
 # EventHub QA Automation
 
-Playwright and TypeScript tests for US-114: booking tickets for an event.
+Playwright + TypeScript automation for **US-114: Book tickets for an event**.
 
-The suite covers the UI booking journey and API booking behaviour. GitHub Actions runs both projects on every push.
+The suite contains **4 UI tests and 5 API tests**, covering booking creation, pricing, My Bookings, cancellation, quantity validation, and seat restoration.
+
+- [Web application](https://eventhub.rahulshettyacademy.com)
+- [API documentation](https://api.eventhub.rahulshettyacademy.com/api/docs/)
 
 ## Setup
 
-Requirements: Node.js 24 and npm.
+Requirements: **Node.js 24**, npm, and your own registered EventHub account reserved for automation.
 
 ```bash
 npm ci
 npx playwright install chromium
 ```
 
-Copy `.env.example` to `.env` and enter your registered EventHub test credentials.
-
-PowerShell:
+Copy `.env.example` to `.env`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Required configuration:
+Configure:
 
 ```dotenv
 WEB_BASE_URL=https://eventhub.rahulshettyacademy.com
@@ -31,185 +32,187 @@ TEST_USER_EMAIL=your-test-account-email
 TEST_USER_PASSWORD=your-test-account-password
 ```
 
-Keep the trailing slash in `API_BASE_URL`; API clients use relative paths.
+Keep the trailing slash in `API_BASE_URL`, because API requests use relative paths.
 
-Event 285 was the featured practice event used during implementation. If it becomes unavailable, configure another suitable event with at least two available seats.
+Credentials belong in the ignored `.env` file locally and GitHub Secrets in CI. Reviewer credentials are supplied privately with the submission.
 
-Real credentials belong in `.env`, which is ignored by Git. Reviewer credentials are supplied privately with the submission.
+### Event prerequisites
 
-## Run
+- `TEST_EVENT_ID` selects the event used by API tests and UI-001/002. It needs at least two available seats.
+- UI-003/004 select **World Tech Summit** through `getTestEvent('techSummit')` in `tests/data/booking.data.ts`.
+- The sell-out scenario requires **1–10 remaining seats**.
+- The single-seat scenario requires **at least two remaining seats**.
 
-Check TypeScript:
+Seat counts are read at runtime rather than hardcoded to eight. Existing event availability remains an external dependency.
 
-```bash
-npx tsc --noEmit
-```
+## Run the tests
 
-Run all tests:
+| Action | Command |
+| --- | --- |
+| Check TypeScript | `npx tsc --noEmit` |
+| Run all tests | `npx playwright test` |
+| Run API tests | `npx playwright test --project=api` |
+| Run UI tests visibly | `npx playwright test --project=chromium --headed` |
+| Run one scenario | `npx playwright test --grep "US114-UI-003"` |
+| Debug UI steps | `npx playwright test --project=chromium --debug` |
+| Open the HTML report | `npx playwright show-report` |
 
-```bash
-npx playwright test
-```
+## Requirements traceability matrix
 
-Run API tests:
-
-```bash
-npx playwright test --project=api
-```
-
-Run UI tests with a visible browser:
-
-```bash
-npx playwright test --project=chromium --headed
-```
-
-Open the HTML report:
-
-```bash
-npx playwright show-report
-```
-
-## Coverage
-
-The suite contains five API tests and one complete UI journey.
-
-| Test | What it verifies | Requirement |
+| Requirement | Verification | Test IDs |
 | --- | --- | --- |
-| UI booking journey | Increase quantity to two, verify total, enter contact details, confirm, and display a reference and customer name. | AC1, AC2 |
-| Same UI journey | Find the matching reference in My Bookings. | AC3 |
-| Same UI journey | Cancel the booking and verify its reference remains absent after reload. | AC4 |
-| API creation and retrieval | Create a booking and verify contact details, quantity, calculated total, status, reference, and persistence. | AC2, AC5 |
-| API cancellation | Cancel a booking and verify retrieval returns 404. | Booking lifecycle |
-| API quantity validation | Reject 0, 11, and 1.5 with validation errors. | Documented 1–10 integer rule |
+| **AC1:** Submit quantity and contact details; receive confirmation and a booking reference | Confirmation, customer name, and a reference matching the created booking | `US114-UI-001` |
+| **AC2:** Total equals ticket price × quantity | UI totals before/after quantity change, confirmation and booking-card totals; API calculation | `US114-UI-001`, `US114-API-001` |
+| **AC3:** Booking appears in My Bookings | Matching reference, event title, quantity, and total | `US114-UI-001` |
+| **AC4:** Cancel a booking | UI reference remains absent after reload; API retrieval returns 404 after cancellation | `US114-UI-002`, `US114-API-002` |
+| **AC5:** Create through `POST /api/bookings` | HTTP 201, saved input, status, reference, total, and retrieval | `US114-API-001` |
+| Supporting rule: integer quantity from 1 to 10 | Reject 0, 11, and 1.5 with quantity validation errors | `US114-API-003`, `US114-API-004`, `US114-API-005` |
+| Supporting behaviour: sold-out inventory | Book remaining seats, verify sold-out state and disabled booking link, cancel, and verify availability returns | `US114-UI-003` |
+| Supporting behaviour: seat restoration | Booking decreases availability by one; cancellation restores the original count | `US114-UI-004` |
 
-The UI test follows the requested customer journey. API tests isolate backend creation, cancellation, and quantity validation.
+The supporting scenarios extend coverage beyond the acceptance criteria.
 
-I chose a small suite covering all acceptance criteria, with additional boundary cases, rather than duplicating every scenario across both layers.
+### Why this coverage?
 
-## Structure and decisions
+The UI tests verify the customer-visible journey and inventory transitions. API tests check saved booking details, price calculation, cancellation, and representative invalid quantity boundaries.
+
+Nine focused tests cover all acceptance criteria and important booking risks within the assessment timeframe, without duplicating every scenario across both interfaces.
+
+## Architecture, growth, and teamwork
+
+| Location | Responsibility |
+| --- | --- |
+| `src/pages/` | Login, Home, Events, Event Details, and My Bookings page objects |
+| `src/components/header.component.ts` | Shared header navigation |
+| `src/bookings.api.ts` | API operations and tracking of created booking IDs |
+| `tests/fixtures.ts` | Authentication, helper injection, and cleanup |
+| `tests/data/booking.data.ts` | Generated contacts, event definitions, and parameterised cases |
+| `tests/ui/`, `tests/api/` | Scenarios and assertions |
+| `playwright.config.ts` | Projects, execution settings, and reporting |
+| `.github/workflows/tests.yml` | CI execution and report upload |
+
+The framework separates responsibilities so new coverage can be added without changing unrelated tests:
+
+- **Page objects** own page-specific locators and actions.
+- **Shared components** reuse common behaviour.
+- **API helpers** centralise endpoint calls.
+- **Fixtures** provide authenticated helpers and manage cleanup.
+- **Test data** holds reusable inputs and parameterised cases.
+- **Tests** describe scenarios and assert expected behaviour.
+
+Playwright and TypeScript serve both interfaces, keeping one runner, configuration, and reporting system. The design stays proportionate to the assessment without a large inheritance hierarchy or separate locator-only files.
+
+### Contribution conventions
+
+Suites and cases use consistent, traceable names:
 
 ```text
-src/
-  bookings.api.ts
-  booking.page.ts
-tests/
-  fixtures.ts
-  api/bookings.spec.ts
-  ui/bookings.spec.ts
-.github/workflows/tests.yml
+US-114 | Book tickets for an event
+US114-UI-001 | Book tickets and verify My Bookings
+US114-API-001 | Create and retrieve a booking
 ```
 
-- `bookings.api.ts` contains API calls and tracks created booking IDs.
-- `booking.page.ts` contains browser interactions and tracks UI booking references.
-- `fixtures.ts` handles authentication, provides helpers, and runs cleanup.
-- Tests contain scenario assertions.
+For a new story, contributors add a spec under the relevant interface, reuse fixtures and data, extend the responsible page/API helper, and update the RTM.
 
-Authentication is handled by the framework. API tests receive a Bearer-authenticated request context; UI tests receive a signed-in page. Individual tests do not repeat login logic.
+This keeps changes local and makes coverage easier to maintain as the team and suite grow. Parallel execution would require isolated accounts/events; the current suite deliberately uses one worker.
 
-Playwright and TypeScript serve both layers, keeping one runner, configuration, and reporting system.
+### Framework-managed authentication
 
-Tests run with one worker to limit interference in the shared environment. Automatic test retries are disabled. The API login request allows one connection-reset retry; booking creation is not automatically retried because it could create duplicates.
+Individual tests do not manage credentials, login, or tokens.
+
+- The first UI test in a worker signs in and caches authentication state in memory.
+- Later UI tests receive fresh browser contexts using that state.
+- A restarted worker authenticates again.
+- API fixtures authenticate per test and provide a Bearer-authenticated request context.
+
+Authentication reuse is separate from test data: each test has its own booking and cleanup tracker.
 
 ## Test data and cleanup
 
-Each booking uses generated contact data.
+Each test creates its own prerequisite booking and uses generated contact data. No test consumes another test’s booking.
 
-API cleanup deletes only IDs returned from creation requests made by the current test. It runs during fixture teardown, including after assertion failures. A 404 during cleanup is accepted because cancellation tests already delete their bookings.
+- API helpers track created IDs before scenario assertions and delete them during teardown, including after failures.
+- API cleanup accepts 404 when a cancellation test has already deleted its booking.
+- UI scenarios explicitly cancel their bookings on the successful path.
+- UI fixture teardown cancels remaining tracked references after failures.
+- Cleanup errors fail the run.
+- The suite does not automatically clear all My Bookings, delete registered accounts, or reset existing events.
 
-UI cleanup cancels only references captured from the current test's confirmation screen. It uses the UI rather than assuming featured practice bookings share the API's storage.
+Closing the browser or logging out does not remove server-side bookings.
 
-Cleanup failures are reported. The suite does not clear all bookings, delete accounts, or modify existing events.
+Tests run with **one worker** and no automatic test retries to reduce interference and avoid repeated booking attempts. Avoid overlapping local and CI runs using the same account.
 
-A remaining limitation is that a UI booking may require manual cleanup if creation succeeds but its confirmation reference cannot be read. Forced process termination can also prevent teardown.
+### Known limitations
+
+UI cleanup depends on capturing the confirmation reference. If creation succeeds but the reference cannot be read, or execution is forcibly terminated, manual cleanup may be needed.
+
+Tests do not intentionally depend on execution order. However, shared inventory changes or failed cleanup can affect subsequent tests.
+
+### Credential handling
+
+Passwords are supplied through environment variables and GitHub Secrets, not test data or committed files. No custom encryption is introduced; it would add decryption-key management without removing the need to protect secrets.
 
 ## Story review
 
-US-114 defines the main journey but leaves several business rules unclear.
+US-114 describes the main journey but leaves several business rules unclear.
 
 | Area | Question for the Product Owner |
 | --- | --- |
-| User identity | The application requires authentication to access events. Should US-114 identify the actor as a registered, signed-in user and explicitly state authentication as a prerequisite? |
-| Ownership | Should users be able to retrieve and cancel only their own bookings? |
-| Contact validation | What formats and length limits apply? Can attendee details differ from account details? |
-| Event eligibility | Should booking be blocked once an event has ended? Is the “always available for practice” behaviour an intentional exception limited to featured events? What is the booking cutoff for events still in progress? |
-| Availability | Do featured practice events follow the same capacity restrictions as other events? |
-| Cancellation | Is there a cancellation deadline? |
-| Duplicate submission | Should repeated confirmation or request retries create separate bookings? |
-| API scope | Does AC5 cover creation only, or also retrieval and cancellation? |
+| User identity | The observed UI requires authentication. Should “visitor” mean a registered, signed-in user, with authentication stated as a prerequisite? |
+| Contact validation | What formats and length limits apply? May attendee details differ from account details? |
+| Quantity and capacity | Should the story state the documented 1–10 integer limit and available-seat restriction? |
+| Event eligibility | When does booking close for started or ended events? Are featured practice events intentionally exempt? |
+| Cancellation | Who may cancel, until when, and should cancellation delete the booking or retain a cancelled record? |
+| Repeated/concurrent requests | How should duplicate submissions and competition for the last seats be handled? |
+| API scope | Does AC5 cover creation only or the complete booking lifecycle? |
 
-### Rules clarified by the API documentation
+### Working assumptions
 
-The documentation specifies:
-
-- All five booking input fields are required.
-- Quantity must be an integer from 1 to 10.
-- Creation checks event existence and capacity, calculates the total, and atomically creates the booking and decrements seats.
-- Successful creation returns 201.
-- Invalid input or insufficient seats returns 400.
-- A missing event returns 404.
-- Cancellation permanently deletes the booking and restores its seats.
-
-The disappearance of a cancelled booking from My Bookings therefore agrees with the documented deletion behaviour.
-
-### Findings
-
-| Finding | Evidence and treatment |
-| --- | --- |
-| Price response type differs from documentation examples | API creation returned totalPrice as the string `"600"`, while Swagger examples show a number. The calculation test explicitly converts it to a number; this difference is recorded separately. |
-| Reference format differs | Documentation describes EVT-XXXXXX, while the manual UI walkthrough returned D-XECJYK. Tests check a non-empty, consistent reference rather than enforce the disputed prefix. |
-| Cancellation documentation is ambiguous | Listing supports status=cancelled, while cancellation is described as permanent deletion. Clarification is needed on when cancelled records can exist. |
-| Authentication declaration is incomplete | Login instructs Bearer authentication, but booking operations do not clearly declare endpoint-specific security and authentication error responses. Authenticated requests work; unauthenticated and cross-account behaviour remain unverified. |
-| Response example has inconsistent IDs | An example booking contains eventId=3 while its nested event has id=1. This is a documentation example inconsistency. |
-| Past featured event was bookable | The manual walkthrough booked a featured event dated 20 October 2026 on 12 November 2026. Booking an ended event would normally be unexpected, but the UI explicitly labels this event as always available for practice. Clarify whether this is an intentional featured-event exception. Ordinary-event behaviour remains unverified. |
-
-Observed behaviour is not automatically treated as the intended requirement. Findings distinguish documentation differences from confirmed application failures.
-
-### Assumptions
-
-- Booking requires a registered, authenticated user, consistent with observed UI behaviour. The suite uses a dedicated test account.
-- Quantity follows the documented 1–10 integer range.
+- Booking requires authentication, consistent with observed UI behaviour.
+- Quantity follows the documented 1–10 integer range and available capacity.
 - Total follows AC2: unit price multiplied by quantity.
-- Cancellation follows the documented deletion contract.
-- Prices are displayed in USD for the configured event.
-- Existing practice-event availability is an external dependency.
+- Cancellation follows the documented deletion behaviour.
+- Configured UI events display prices in USD.
 
-## GitHub Actions — bonus
+### Observations and documentation differences
 
-`.github/workflows/tests.yml` runs on every push and supports manual execution.
+These observations require clarification rather than automatically being classified as application defects.
 
-It:
+| Observation | Treatment |
+| --- | --- |
+| API `totalPrice` returned as a string, while documentation examples show a number | Convert explicitly for calculation assertions; clarify the response type contract |
+| UI practice references use `D-`, while documentation describes `EVT-` | Verify a non-empty, consistent reference without enforcing an unconfirmed prefix |
+| An ended featured event remained bookable | The UI labels it “always available for practice”; clarify this exception before reporting a date-validation defect |
 
-1. Checks out the repository.
-2. Sets up Node.js 24.
-3. Installs locked dependencies with npm ci.
-4. Checks TypeScript.
-5. Installs Chromium and its system dependencies.
-6. Runs API and UI tests.
-7. Uploads the HTML report with seven-day retention.
+## GitHub Actions
 
-Configure these repository secrets:
+The workflow runs on **every push** and supports manual execution. It:
 
-- TEST_USER_EMAIL
-- TEST_USER_PASSWORD
+1. Sets up Node.js 24 and installs locked dependencies.
+2. Checks TypeScript.
+3. Installs Chromium and its system dependencies.
+4. Runs UI and API tests.
+5. Uploads the HTML report with seven-day retention.
 
-Workflow runs are serialised to avoid overlapping runs using the same account. Local runs should also avoid overlapping CI runs with that account.
+Required repository secrets:
 
-CI tracing is disabled because login traces can contain credentials. Local failure traces are retained for debugging and should remain private.
+```text
+TEST_USER_EMAIL
+TEST_USER_PASSWORD
+```
+
+CI runs are serialised to avoid overlapping use of the test account. CI traces are disabled because authentication traces can expose credentials; local failure traces should remain private.
 
 ## Validation
 
-- Five API tests passed locally.
-- The complete UI booking and cancellation journey passed locally.
-- GitHub Actions successfully completed TypeScript checking, API/UI execution, and HTML report upload.
+TypeScript checking and all **9 tests passed locally** during implementation.
 
-The application is a shared external environment, so availability and network conditions can affect future runs.
+Use the GitHub Actions result and HTML report for the submitted commit as its CI execution evidence. External availability and network conditions can affect future runs.
 
 ## With more time
 
-- Add explicit unauthenticated UI/API and cross-account access tests, including verification that signed-out users cannot access events.
-- Verify booking cutoffs for ordinary events separately from featured practice events.
-- Use isolated test-created events for deterministic capacity and seat-restoration checks.
-- Verify concurrent booking requests cannot oversell a limited-capacity event.
-- Expand contact validation and decimal-price cases.
-- Add cancellation-dismissal coverage and additional browsers.
-- Capture UI-created booking identifiers earlier to improve cleanup when confirmation rendering fails.
+- Create/delete test-owned events for deterministic inventory and safer parallel execution.
+- Capture UI booking identifiers earlier to strengthen failure cleanup.
+- Add unauthenticated and cross-account access tests.
+- Verify ordinary-event booking cutoffs, concurrency, and duplicate submissions.
+- Expand contact validation, decimal pricing, and browser coverage.
