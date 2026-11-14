@@ -5,8 +5,10 @@ import {
 } from '@playwright/test';
 import { LoginPage } from '../src/pages/login.page';
 import { BookingsApi } from '../src/bookings.api';
-import { BookingPage } from '../src/booking.page';
-
+import { EventDetailsPage } from '../src/pages/event-details.page';
+import { MyBookingsPage } from '../src/pages/my-bookings.page';
+import { HomePage } from '../src/pages/home.page';
+import { EventsPage } from '../src/pages/events.page';
 function requiredEnv(name: string): string {
   const value = process.env[name];
 
@@ -16,11 +18,17 @@ function requiredEnv(name: string): string {
 
   return value;
 }
+type UiPages = {
+  home: HomePage;
+  events: EventsPage;
+  eventDetails: EventDetailsPage;
+  myBookings: MyBookingsPage;
+};
 
 type Fixtures = {
   authenticatedApi: APIRequestContext;
   bookings: BookingsApi;
-  bookingPage: BookingPage;
+  ui: UiPages;
 };
 
 export const test = base.extend<Fixtures>({
@@ -84,7 +92,7 @@ export const test = base.extend<Fixtures>({
       await bookings.cleanup();
     }
   },
-  bookingPage: async ({ page }, use) => {
+ui: async ({ page }, use) => {
   const loginPage = new LoginPage(page);
 
   await loginPage.open();
@@ -94,12 +102,40 @@ export const test = base.extend<Fixtures>({
     requiredEnv('TEST_USER_PASSWORD'),
   );
 
-  const bookingPage = new BookingPage(page);
+  const references = new Set<string>();
+
+  const eventDetails = new EventDetailsPage(page, reference => {
+    references.add(reference);
+  });
+
+  const myBookings = new MyBookingsPage(page, reference => {
+  references.delete(reference);
+});
 
   try {
-    await use(bookingPage);
+    await use({
+  home: new HomePage(page),
+  events: new EventsPage(page),
+  eventDetails,
+  myBookings,
+});
   } finally {
-    await bookingPage.cleanup();
+    const failures: string[] = [];
+
+    for (const reference of references) {
+      try {
+        await myBookings.open();
+        await myBookings.cancel(reference);
+      } catch {
+        failures.push(reference);
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(
+        `UI cleanup failed for booking references: ${failures.join(', ')}`,
+      );
+    }
   }
 },
 });
