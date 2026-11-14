@@ -3,10 +3,12 @@ import {
   expect,
   type APIRequestContext,
 } from '@playwright/test';
-
+import { LoginPage } from '../src/pages/login.page';
 import { BookingsApi } from '../src/bookings.api';
-import { BookingPage } from '../src/booking.page';
-
+import { EventDetailsPage } from '../src/pages/event-details.page';
+import { MyBookingsPage } from '../src/pages/my-bookings.page';
+import { HomePage } from '../src/pages/home.page';
+import { EventsPage } from '../src/pages/events.page';
 function requiredEnv(name: string): string {
   const value = process.env[name];
 
@@ -16,11 +18,17 @@ function requiredEnv(name: string): string {
 
   return value;
 }
+type UiPages = {
+  home: HomePage;
+  events: EventsPage;
+  eventDetails: EventDetailsPage;
+  myBookings: MyBookingsPage;
+};
 
 type Fixtures = {
   authenticatedApi: APIRequestContext;
   bookings: BookingsApi;
-  bookingPage: BookingPage;
+  ui: UiPages;
 };
 
 export const test = base.extend<Fixtures>({
@@ -84,31 +92,51 @@ export const test = base.extend<Fixtures>({
       await bookings.cleanup();
     }
   },
-  bookingPage: async ({ page }, use) => {
-  await page.goto('/login');
+ui: async ({ page }, use) => {
+  const loginPage = new LoginPage(page);
 
-  await page
-    .getByRole('textbox', { name: 'Email', exact: true })
-    .fill(requiredEnv('TEST_USER_EMAIL'));
+  await loginPage.open();
 
-  await page
-    .getByRole('textbox', { name: 'Password', exact: true })
-    .fill(requiredEnv('TEST_USER_PASSWORD'));
+  await loginPage.signIn(
+    requiredEnv('TEST_USER_EMAIL'),
+    requiredEnv('TEST_USER_PASSWORD'),
+  );
 
-  await page
-    .getByRole('button', { name: 'Sign In', exact: true })
-    .click();
+  const references = new Set<string>();
 
-await expect(page).not.toHaveURL(/\/login\/?$/, {
-  timeout: 20_000,
+  const eventDetails = new EventDetailsPage(page, reference => {
+    references.add(reference);
+  });
+
+  const myBookings = new MyBookingsPage(page, reference => {
+  references.delete(reference);
 });
-  const bookingPage = new BookingPage(page);
 
-try {
-  await use(bookingPage);
-} finally {
-  await bookingPage.cleanup();
-}
+  try {
+    await use({
+  home: new HomePage(page),
+  events: new EventsPage(page),
+  eventDetails,
+  myBookings,
+});
+  } finally {
+    const failures: string[] = [];
+
+    for (const reference of references) {
+      try {
+        await myBookings.open();
+        await myBookings.cancel(reference);
+      } catch {
+        failures.push(reference);
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(
+        `UI cleanup failed for booking references: ${failures.join(', ')}`,
+      );
+    }
+  }
 },
 });
 
