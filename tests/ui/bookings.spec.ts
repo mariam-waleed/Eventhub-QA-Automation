@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import { test, expect } from '../fixtures';
+import { createContactDetails } from '../data/booking.data';import { test, expect } from '../fixtures';
 
 test.describe('US-114 | Book tickets for an event', () => {
   test('US114-UI-001 | Book tickets, verify My Bookings, and cancel', async ({
@@ -27,11 +26,7 @@ test.describe('US-114 | Book tickets for an event', () => {
         maximumFractionDigits: 2,
       }).format(amount);
 
-    const contact = {
-      name: `QA ${randomUUID().slice(0, 8)}`,
-      email: `qa-${randomUUID()}@example.com`,
-      phone: '+919876543210',
-    };
+const contact = createContactDetails();
 
 await ui.home.open();
 await ui.home.header.openEvents();

@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
-
+import {
+  createContactDetails,
+  invalidQuantityCases,
+} from '../data/booking.data';
 import { test, expect } from '../fixtures';
 import type { BookingInput } from '../../src/bookings.api';
 
@@ -14,11 +17,13 @@ function eventId(): number {
 }
 
 function bookingInput(quantity = 2): BookingInput {
+  const contact = createContactDetails();
+
   return {
     eventId: eventId(),
-    customerName: 'QA Test Attendee',
-    customerEmail: `qa-${randomUUID()}@example.com`,
-    customerPhone: '+919876543210',
+    customerName: contact.name,
+    customerEmail: contact.email,
+    customerPhone: contact.phone,
     quantity,
   };
 }
@@ -36,8 +41,8 @@ test.beforeEach(async ({ bookings }) => {
     'Configured test event needs at least two available seats',
   ).toBeGreaterThanOrEqual(2);
 });
-
-test('creates a booking with correct details and total', async ({
+test.describe('US-114 | Book tickets for an event', () => {
+test('US114-API-001 | Create and retrieve a booking', async ({
   bookings,
 }) => {
   const input = bookingInput();
@@ -92,7 +97,7 @@ expect(totalPrice).toBeCloseTo(unitPrice * input.quantity, 2);
   });
 });
 
-test('cancels a booking so it can no longer be retrieved', async ({
+test('US114-API-002 | Cancel an existing booking', async({
   bookings,
 }) => {
   const createdResponse = await bookings.create(bookingInput());
@@ -115,11 +120,13 @@ test('cancels a booking so it can no longer be retrieved', async ({
   expect(retrievedResponse.status()).toBe(404);
 });
 
-for (const quantity of [0, 11, 1.5]) {
-  test(`rejects invalid ticket quantity ${quantity}`, async ({
+for (const testCase of invalidQuantityCases) {
+  test(`${testCase.id} | ${testCase.description}`, async ({
     bookings,
   }) => {
-    const response = await bookings.create(bookingInput(quantity));
+    const response = await bookings.create(
+      bookingInput(testCase.quantity),
+    );
 
     expect(response.status()).toBe(400);
 
@@ -127,6 +134,7 @@ for (const quantity of [0, 11, 1.5]) {
 
     expect(body.success).toBe(false);
     expect(body.error).toBe('Validation failed');
+
     expect(body.details).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -136,3 +144,4 @@ for (const quantity of [0, 11, 1.5]) {
     );
   });
 }
+});
