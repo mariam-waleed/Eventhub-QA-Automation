@@ -3,7 +3,7 @@ import {
   expect,
   type APIRequestContext,
 } from '@playwright/test';
-
+import { LoginPage } from '../src/pages/login.page';
 import { BookingsApi } from '../src/bookings.api';
 import { BookingPage } from '../src/booking.page';
 
@@ -85,30 +85,22 @@ export const test = base.extend<Fixtures>({
     }
   },
   bookingPage: async ({ page }, use) => {
-  await page.goto('/login');
+  const loginPage = new LoginPage(page);
 
-  await page
-    .getByRole('textbox', { name: 'Email', exact: true })
-    .fill(requiredEnv('TEST_USER_EMAIL'));
+  await loginPage.open();
 
-  await page
-    .getByRole('textbox', { name: 'Password', exact: true })
-    .fill(requiredEnv('TEST_USER_PASSWORD'));
+  await loginPage.signIn(
+    requiredEnv('TEST_USER_EMAIL'),
+    requiredEnv('TEST_USER_PASSWORD'),
+  );
 
-  await page
-    .getByRole('button', { name: 'Sign In', exact: true })
-    .click();
-
-await expect(page).not.toHaveURL(/\/login\/?$/, {
-  timeout: 20_000,
-});
   const bookingPage = new BookingPage(page);
 
-try {
-  await use(bookingPage);
-} finally {
-  await bookingPage.cleanup();
-}
+  try {
+    await use(bookingPage);
+  } finally {
+    await bookingPage.cleanup();
+  }
 },
 });
 
