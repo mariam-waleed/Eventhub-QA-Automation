@@ -1,7 +1,7 @@
 import { createContactDetails } from '../data/booking.data';import { test, expect } from '../fixtures';
 
 test.describe('US-114 | Book tickets for an event', () => {
-  test('US114-UI-001 | Book tickets, verify My Bookings, and cancel', async ({
+test('US114-UI-001 | Book tickets and verify My Bookings', async ({
     ui,
     bookings,
   }) => {
@@ -58,11 +58,40 @@ await ui.events.openEvent(eventBody.data.title);
     await ui.eventDetails.viewBookings();
     await ui.myBookings.waitUntilReady();
 
-    await expect(ui.myBookings.reference(reference)).toBeVisible();
-
-    await ui.myBookings.cancel(reference);
-    await ui.myBookings.reload();
-
-    await expect(ui.myBookings.reference(reference)).toHaveCount(0);
+    await expect(ui.myBookings.reference(reference)).toBeVisible(); 
   });
+  test('US114-UI-002 | Cancel an existing booking', async ({
+  ui,
+  bookings,
+}) => {
+  const eventId = Number(process.env.TEST_EVENT_ID);
+
+  expect(Number.isInteger(eventId) && eventId > 0).toBe(true);
+
+  const eventResponse = await bookings.getEvent(eventId);
+  expect(eventResponse.status()).toBe(200);
+
+  const eventBody = await eventResponse.json();
+
+  // Create this test's own prerequisite through the UI.
+  await ui.home.open();
+  await ui.home.header.openEvents();
+
+  await expect(ui.events.heading).toBeVisible();
+  await ui.events.openEvent(eventBody.data.title);
+
+  await ui.eventDetails.enterDetails(createContactDetails());
+
+  const reference = await ui.eventDetails.confirm();
+
+  await ui.eventDetails.viewBookings();
+  await ui.myBookings.waitUntilReady();
+
+  await expect(ui.myBookings.reference(reference)).toBeVisible();
+
+  await ui.myBookings.cancel(reference);
+  await ui.myBookings.reload();
+
+  await expect(ui.myBookings.reference(reference)).toHaveCount(0);
+});
 });
