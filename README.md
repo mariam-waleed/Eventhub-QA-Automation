@@ -9,32 +9,26 @@ The suite contains **4 UI tests and 5 API tests**, covering booking creation, pr
 
 ## Setup
 
-Requirements: **Node.js 24**, npm, and your own registered EventHub account reserved for automation.
+Requirements: **Node.js 24** and npm.
 
 ```bash
 npm ci
 npx playwright install chromium
 ```
 
-Copy `.env.example` to `.env`:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Configure:
+The repository includes `.env` as required by the assessment submission form. It provides:
 
 ```dotenv
 WEB_BASE_URL=https://eventhub.rahulshettyacademy.com
 API_BASE_URL=https://api.eventhub.rahulshettyacademy.com/api/
 TEST_EVENT_ID=285
-TEST_USER_EMAIL=your-test-account-email
-TEST_USER_PASSWORD=your-test-account-password
+TEST_USER_EMAIL=<assessment-account-email>
+TEST_USER_PASSWORD=<assessment-account-password>
 ```
 
-Keep the trailing slash in `API_BASE_URL`, because API requests use relative paths.
+The values above describe the configuration; the supplied `.env` contains the credentials for running the tests. Keep the trailing slash in `API_BASE_URL`, because API requests use relative paths.
 
-Credentials belong in the ignored `.env` file locally and GitHub Secrets in CI. Reviewer credentials are supplied privately with the submission.
+The account must be reserved for this assessment. Do not replace its credentials with personal or reused credentials. GitHub Actions receives credentials through repository secrets.
 
 ### Event prerequisites
 
@@ -74,7 +68,7 @@ The supporting scenarios extend coverage beyond the acceptance criteria.
 
 ### Why this coverage?
 
-The UI tests verify the customer-visible journey and inventory transitions. API tests check saved booking details, price calculation, cancellation, and representative invalid quantity boundaries.
+UI tests verify the customer-visible journey and inventory transitions. API tests check saved booking details, calculation, cancellation, and representative invalid quantity boundaries.
 
 Nine focused tests cover all acceptance criteria and important booking risks within the assessment timeframe, without duplicating every scenario across both interfaces.
 
@@ -150,7 +144,9 @@ Tests do not intentionally depend on execution order. However, shared inventory 
 
 ### Credential handling
 
-Passwords are supplied through environment variables and GitHub Secrets, not test data or committed files. No custom encryption is introduced; it would add decryption-key management without removing the need to protect secrets.
+The committed `.env` fulfils the submission requirement. This is an assessment-specific exception; in a production framework, credentials would be supplied through untracked environment configuration or a secret manager.
+
+CI uses GitHub Secrets. No custom password encryption is introduced, and cached UI authentication remains in memory.
 
 ## Story review
 
