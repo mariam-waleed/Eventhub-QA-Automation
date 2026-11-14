@@ -95,4 +95,14 @@ export class EventDetailsPage {
   async viewBookings() {
     await this.viewBookingsButton.click();
   }
+  async selectQuantity(quantity: number) {
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+    throw new Error('Ticket quantity must be an integer from 1 to 10.');
+  }
+
+  // A freshly opened event page starts at one ticket.
+  for (let current = 1; current < quantity; current++) {
+    await this.addTicket();
+  }
+}
 }

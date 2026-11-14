@@ -28,7 +28,7 @@ export class MyBookingsPage {
     return this.page.getByText(reference, { exact: true });
   }
 
-  private card(reference: string) {
+card(reference: string) {
     return this.reference(reference).locator(
       'xpath=ancestor::*[.//*[@data-testid="cancel-booking-btn"]][1]',
     );

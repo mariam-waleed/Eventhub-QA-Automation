@@ -25,3 +25,30 @@ export const invalidQuantityCases = [
     quantity: 1.5,
   },
 ];
+ 
+export const testEvents = [
+  {
+    key: 'diwali',
+    title: 'Dilli Diwali Mela',
+  },
+  {
+    key: 'hollywood',
+    title: 'Hollywood Monsoon Night — Los Angeles',
+  },
+  {
+    key: 'techSummit',
+    title: 'World Tech Summit',
+  },
+] as const;
+
+export function getTestEvent(
+  key: (typeof testEvents)[number]['key'],
+) {
+  const event = testEvents.find(event => event.key === key);
+
+  if (!event) {
+    throw new Error(`Test event configuration not found: ${key}`);
+  }
+
+  return event;
+}
