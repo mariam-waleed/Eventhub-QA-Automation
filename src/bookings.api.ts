@@ -13,20 +13,23 @@ export class BookingsApi {
 
   constructor(private readonly request: APIRequestContext) {}
 
+  track(id: number) {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new Error('Cannot track a booking without a valid ID.');
+    }
+
+    this.createdIds.add(id);
+  }
+
   async create(input: BookingInput) {
     const response = await this.request.post('bookings', {
       data: input,
     });
 
-    // Track before assertions so failed tests can still clean up.
+    // Register before assertions so failed tests can still clean up.
     if (response.ok()) {
       const body = await response.json();
-
-      if (Number.isInteger(body.data?.id)) {
-        this.createdIds.add(body.data.id);
-      } else {
-        throw new Error('Booking creation response is missing its numeric ID.');
-      }
+      this.track(body.data?.id);
     }
 
     return response;
@@ -51,7 +54,7 @@ export class BookingsApi {
       try {
         const response = await this.cancel(id);
 
-        // A test may already have cancelled its booking.
+        // A cancellation test may have already removed the booking.
         if (response.status() !== 200 && response.status() !== 404) {
           failures.push(`Booking ${id}: HTTP ${response.status()}`);
         }
